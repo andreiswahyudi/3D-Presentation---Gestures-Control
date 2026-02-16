@@ -2,7 +2,7 @@
 
 Sistem presentasi berbasis web yang memanfaatkan teknologi **Computer Vision** untuk kontrol navigasi nirsentuh melalui gestur tangan secara real-time.
 
-## ## Features
+## Features
 
 * **🖼️ 3D Immersive Carousel**: Visualisasi slide interaktif dengan efek *depth* dan *dynamic blur* menggunakan Three.js.
 * **🖐️ Hand Gesture Navigation**: Kontrol penuh (Next, Prev, Zoom) hanya dengan menggerakkan tangan di depan kamera.
@@ -10,13 +10,13 @@ Sistem presentasi berbasis web yang memanfaatkan teknologi **Computer Vision** u
 * **🔍 Smart Zoom 65%**: Fitur fokus otomatis yang dihitung secara matematis berdasarkan FOV kamera untuk pembacaan konten yang optimal.
 * **⚙️ Dynamic Backend**: Integrasi Flask untuk pemindaian otomatis direktori gambar (`JPG/PNG`) secara dinamis.
 
-## ## Prerequisites
+## Prerequisites
 
 * **Python 3.10+**: Diperlukan untuk menjalankan server backend Flask.
 * **Modern Web Browser**: Disarankan Google Chrome atau Microsoft Edge untuk akselerasi hardware MediaPipe.
 * **Webcam**: Kamera fungsional untuk deteksi gestur.
 
-## ## Installation
+## Installation
 
 1. Clone the repository:
 ```bash
@@ -38,7 +38,7 @@ pip install -r requirements.txt
 
 
 
-## ## Usage
+## Usage
 
 Anda dapat menjalankan server backend melalui CMD untuk mengaktifkan antarmuka web.
 
@@ -62,7 +62,7 @@ python input.py
 | **ZOOM** | ☝️ Atas | Zoom masuk sebesar 65% |
 | **RESET** | 👇 Bawah | Mengembalikan posisi kamera awal |
 
-## ## Configuration
+## Configuration
 
 ### Custom Image Path
 
@@ -84,7 +84,7 @@ source venv/bin/activate  # Linux/Mac
 
 ```
 
-## ## Disclaimer
+## Disclaimer
 
 Alat ini dikembangkan untuk tujuan **edukasi dan riset** mengenai interaksi manusia dan komputer (HCI). Pengembang tidak bertanggung jawab atas penyalahgunaan alat ini dalam lingkungan produksi tanpa pengawasan.
 
