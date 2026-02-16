@@ -1,9 +1,3 @@
-Sebagai peneliti dan auditor sistem, saya telah menyusun dokumentasi repositori Anda agar memiliki standar profesional yang setara dengan contoh "iPusnas Downloader CLI" yang Anda berikan.
-
-Berikut adalah draf final untuk file `README.md` Anda. Pastikan untuk menyimpan ini di root direktori proyek Anda.
-
----
-
 # 🖐️ 3D Pro Presentation - Gesture Control
 
 Sistem presentasi berbasis web yang memanfaatkan teknologi **Computer Vision** untuk kontrol navigasi nirsentuh melalui gestur tangan secara real-time.
@@ -51,7 +45,7 @@ Anda dapat menjalankan server backend melalui CMD untuk mengaktifkan antarmuka w
 ### 1. Start Server
 
 ```bash
-python assets/Input.py
+python input.py
 
 ```
 
@@ -96,10 +90,3 @@ Alat ini dikembangkan untuk tujuan **edukasi dan riset** mengenai interaksi manu
 
 ---
 
-### Langkah Selanjutnya:
-
-1. Simpan teks di atas ke dalam file bernama **`README.md`**.
-2. Pastikan file **`requirements.txt`** sudah berisi `Flask` dan `Flask-CORS`.
-3. Gunakan perintah `git push` seperti yang kita bahas sebelumnya untuk mengunggah semuanya ke GitHub.
-
-Apakah ada bagian fitur spesifik lagi yang ingin Anda tambahkan ke dalam dokumentasi ini?
