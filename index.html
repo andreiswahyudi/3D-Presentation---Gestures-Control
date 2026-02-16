@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Pro Presentation - Keyboard & Hand</title>
+    <style>
+        /* --- GAYA TAMPILAN (UI) --- */
+        body { margin: 0; overflow: hidden; background: #050510; font-family: 'Segoe UI', sans-serif; }
+        
+        #loading { 
+            position: absolute; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); 
+            color: #00ffcc; font-size: 20px; letter-spacing: 2px;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+        #cam-preview {
+            position: absolute; bottom: 20px; right: 20px;
+            width: 200px; height: 150px;
+            border: 2px solid #00ffcc; border-radius: 10px;
+            transform: scaleX(-1); /* Mirror Mode */
+            opacity: 0.7; z-index: 10;
+        }
+        
+        /* ZONA VISUAL (Indikator Layar) */
+        .zone-indicator {
+            position: absolute; pointer-events: none; opacity: 0; transition: 0.3s;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; font-weight: bold; color: white; text-shadow: 0 0 5px black;
+        }
+        
+        /* Kiri & Kanan (Navigasi) - Lebar 30% (Sensitif) */
+        #zone-left { top: 15%; bottom: 15%; left: 0; width: 30%; background: linear-gradient(to right, #00ffcc44, transparent); }
+        #zone-right { top: 15%; bottom: 15%; right: 0; width: 30%; background: linear-gradient(to left, #00ffcc44, transparent); }
+        
+        /* Atas & Bawah (Zoom) */
+        #zone-top { top: 0; left: 0; right: 0; height: 15%; background: linear-gradient(to bottom, #ffaa0044, transparent); }
+        #zone-bottom { bottom: 0; left: 0; right: 0; height: 15%; background: linear-gradient(to top, #ff333344, transparent); }
+
+        .zone-active { opacity: 1 !important; border: 2px solid white; }
+
+        /* PANEL KONTROL UTAMA */
+        #ui {
+            position: absolute; top: 20px; left: 20px; color: #fff;
+            background: rgba(10, 20, 30, 0.95); 
+            padding: 20px; border-radius: 15px; border: 1px solid #00aaff;
+            min-width: 280px; backdrop-filter: blur(5px);
+        }
+        h3 { margin: 0 0 10px 0; color: #00ffcc; font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 5px;}
+        .instruction { font-size: 13px; line-height: 1.6; color: #ddd; }
+        
+        /* Status Lock */
+        #lock-status {
+            margin-top: 15px; padding: 10px; border-radius: 8px;
+            text-align: center; font-weight: bold; font-size: 14px;
+            background: #112233; border: 1px solid #333; transition: 0.3s;
+        }
+        .locked { background: #550000 !important; border-color: #ff0000 !important; color: #ff5555; box-shadow: 0 0 15px #ff000055; }
+        .unlocked { background: #004400 !important; border-color: #00ff00 !important; color: #55ff55; }
+        
+        #status-text { margin-top:5px; text-align:center; font-size:11px; color:#aaa; }
+        .key-hint { color: #ffff00; font-weight: bold; }
+
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+    <div id="loading">SYSTEM INITIALIZING...</div>
+    
+    <div id="zone-left" class="zone-indicator">PREV</div>
+    <div id="zone-right" class="zone-indicator">NEXT</div>
+    <div id="zone-top" class="zone-indicator">ZOOM IN</div>
+    <div id="zone-bottom" class="zone-indicator">RESET ZOOM</div>
+    
+    <div id="ui">
+        <h3>Hybrid Control System</h3>
+        <div class="instruction">
+            <b>HAND GESTURES:</b><br>
+            ✌️ Lock | 🤘 Unlock<br>
+            👈👉 Slide | ☝️👇 Zoom<br>
+            <hr style="border-color:#333; margin: 8px 0;">
+            <b>KEYBOARD:</b><br>
+            <span class="key-hint">←</span> Prev | <span class="key-hint">→</span> Next<br>
+            <span class="key-hint">↑</span> Zoom In | <span class="key-hint">↓</span> Reset
+        </div>
+        
+        <div id="lock-status" class="unlocked">SYSTEM UNLOCKED</div>
+        <div id="status-text">Ready</div>
+    </div>
+
+    <video id="cam-preview"></video>
+
+    <script type="x-shader/x-vertex" id="vertexShader">
+        varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+    </script>
+    <script type="x-shader/x-fragment" id="fragmentShader">
+        uniform sampler2D tDiffuse; uniform float uBlur; varying vec2 vUv;
+        void main() {
+            vec4 color = texture2D(tDiffuse, vUv);
+            if (uBlur > 0.5) {
+                vec4 sum = vec4(0.0); float radius = 0.005; 
+                sum += texture2D(tDiffuse, vUv + vec2(-radius, -radius)); sum += texture2D(tDiffuse, vUv + vec2(0.0, -radius));
+                sum += texture2D(tDiffuse, vUv + vec2(radius, -radius)); sum += texture2D(tDiffuse, vUv + vec2(-radius, 0.0));
+                sum += texture2D(tDiffuse, vUv); sum += texture2D(tDiffuse, vUv + vec2(radius, 0.0));
+                sum += texture2D(tDiffuse, vUv + vec2(-radius, radius)); sum += texture2D(tDiffuse, vUv + vec2(0.0, radius));
+                sum += texture2D(tDiffuse, vUv + vec2(radius, radius));
+                color = sum / 9.0; color.rgb *= 0.4; color.rgb += vec3(0.0, 0.1, 0.2); 
+            }
+            gl_FragColor = color;
+        }
+    </script>
+
+    <script>
+        // --- 1. SETUP THREE.JS (LAYOUT & ZOOM) ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x050510, 0.025);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 100);
+        
+        // --- RUMUS ZOOM 65% (Sesuai request sebelumnya) ---
+        const IMAGE_HEIGHT = 3.8; 
+        const vFOV = THREE.Math.degToRad(camera.fov);
+        
+        // 1. Hitung Jarak Full Screen (100%)
+        const FULL_SCREEN_Z = (IMAGE_HEIGHT / 2) / Math.tan(vFOV / 2); 
+        
+        // 2. Posisi Awal (0%)
+        const INITIAL_CAM_Z = 12; 
+
+        // 3. Target Zoom 65%
+        const ZOOM_FACTOR = 0.65;
+        const ZOOM_TARGET_Z = INITIAL_CAM_Z - ((INITIAL_CAM_Z - FULL_SCREEN_Z) * ZOOM_FACTOR);
+        
+        let targetCamZ = INITIAL_CAM_Z;
+        camera.position.set(0, 0, INITIAL_CAM_Z);
+
+        const renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // --- 2. ENVIRONMENT (BACKGROUND) ---
+        const gridHelper = new THREE.GridHelper(60, 60, 0x00aaff, 0x111122);
+        gridHelper.position.y = -3.5; scene.add(gridHelper);
+
+        const pGeo = new THREE.BufferGeometry();
+        const pCount = 1000; const pPos = new Float32Array(pCount*3);
+        for(let i=0; i<pCount*3; i+=3) {
+            pPos[i]=(Math.random()-0.5)*40; pPos[i+1]=(Math.random()-0.5)*30; pPos[i+2]=(Math.random()-0.5)*30-5;
+        }
+        pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        const pMat = new THREE.PointsMaterial({size:0.08, color:0x00ffcc, transparent:true, opacity:0.5});
+        scene.add(new THREE.Points(pGeo, pMat));
+        
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        const spotLight = new THREE.SpotLight(0x00aaff, 1.5); spotLight.position.set(0,10,5); scene.add(spotLight);
+
+        // --- 3. LOAD SLIDES ---
+        const carouselGroup = new THREE.Group(); scene.add(carouselGroup);
+        let imageMeshes = []; let targetIndex = 0;
+
+        // Fetch gambar dari Python
+        fetch('/api/images').then(r=>r.json()).then(d=>{
+            if(d.files.length>0) loadImages(d.files);
+        });
+
+        function loadImages(files) {
+            const loader = new THREE.TextureLoader();
+            const geo = new THREE.PlaneGeometry(6, IMAGE_HEIGHT); 
+            files.forEach((f, i) => {
+                const tex = loader.load(`/image/${f}`); tex.minFilter = THREE.LinearFilter;
+                const mat = new THREE.ShaderMaterial({
+                    uniforms: { tDiffuse: { value: tex }, uBlur: { value: 1.0 } },
+                    vertexShader: document.getElementById('vertexShader').textContent,
+                    fragmentShader: document.getElementById('fragmentShader').textContent,
+                    side: THREE.DoubleSide, transparent: true
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({color:0x00aaff, opacity:0.5, transparent:true})));
+                mesh.userData = { id: i }; carouselGroup.add(mesh); imageMeshes.push(mesh);
+            });
+            document.getElementById('loading').style.display='none'; updateLayout(true);
+        }
+
+        function updateLayout(instant=false) {
+            imageMeshes.forEach((m, i) => {
+                let off = i - targetIndex;
+                let tPos = new THREE.Vector3(off*6, 0, -10);
+                let tRot = new THREE.Euler(0,0,0); let tBlur=1.0; let tScale=0.0;
+                
+                if(off===0) { tPos.set(0,0,2); tBlur=0.0; tScale=1.1; } 
+                else if(off===-1) { tPos.set(-7,0,-4); tRot.set(0,0.5,0); tScale=0.8; } 
+                else if(off===1) { tPos.set(7,0,-4); tRot.set(0,-0.5,0); tScale=0.8; } 
+
+                if(instant) {
+                    m.position.copy(tPos); m.rotation.copy(tRot); m.scale.set(tScale,tScale,1); m.material.uniforms.uBlur.value=tBlur;
+                } else {
+                    m.userData.tPos=tPos; m.userData.tRot=tRot; m.userData.tBlur=tBlur; m.userData.tScale=tScale;
+                }
+            });
+        }
+
+        // --- 4. LOGIKA GESTUR & LOCK SYSTEM ---
+        const lockStatusDiv = document.getElementById('lock-status');
+        const statusText = document.getElementById('status-text');
+        
+        // Elemen Zona
+        const zLeft = document.getElementById('zone-left');
+        const zRight = document.getElementById('zone-right');
+        const zTop = document.getElementById('zone-top');
+        const zBottom = document.getElementById('zone-bottom');
+
+        let isLocked = false;
+        let cooldown = 0;
+        
+        function onResults(results) {
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const lm = results.multiHandLandmarks[0];
+                
+                // DETEKSI JARI (UP/DOWN)
+                const indexUp = lm[8].y < lm[6].y;
+                const middleUp = lm[12].y < lm[10].y;
+                const ringUp = lm[16].y < lm[14].y;
+                const pinkyUp = lm[20].y < lm[18].y;
+
+                // 1. LOCK: Peace
+                if (indexUp && middleUp && !ringUp && !pinkyUp) {
+                    if (!isLocked) {
+                        isLocked = true;
+                        lockStatusDiv.innerText = "🔒 SYSTEM LOCKED"; lockStatusDiv.className = "locked";
+                        statusText.innerText = "Gestures Disabled"; resetZones();
+                    }
+                }
+
+                // 2. UNLOCK: Rock
+                if (indexUp && pinkyUp && !middleUp && !ringUp) {
+                    if (isLocked) {
+                        isLocked = false;
+                        lockStatusDiv.innerText = "🔓 SYSTEM UNLOCKED"; lockStatusDiv.className = "unlocked";
+                        statusText.innerText = "Gestures Enabled";
+                    }
+                }
+
+                if (isLocked) { resetZones(); return; } 
+
+                // 3. NAVIGASI GESTUR
+                const hX = lm[8].x; const hY = lm[8].y; 
+                statusText.innerText = "🖐️ Hand Active"; resetZones();
+
+                if (hY < 0.15) { // ATAS
+                    zTop.classList.add('zone-active'); targetCamZ = ZOOM_TARGET_Z; 
+                    statusText.innerText = "🔍 ZOOM IN";
+                }
+                else if (hY > 0.85) { // BAWAH
+                    zBottom.classList.add('zone-active'); targetCamZ = INITIAL_CAM_Z;
+                    statusText.innerText = "🔭 ZOOM OUT";
+                }
+                else if (hX > 0.70) { // KIRI
+                    zLeft.classList.add('zone-active');
+                    if (cooldown <= 0 && targetIndex > 0) { targetIndex--; updateLayout(); cooldown = 40; }
+                }
+                else if (hX < 0.30) { // KANAN
+                    zRight.classList.add('zone-active');
+                    if (cooldown <= 0 && targetIndex < imageMeshes.length - 1) { targetIndex++; updateLayout(); cooldown = 40; }
+                }
+
+            } else {
+                if(!isLocked) statusText.innerText = "No Hand / Use Keyboard";
+                resetZones();
+            }
+        }
+
+        function resetZones() {
+            zLeft.classList.remove('zone-active'); zRight.classList.remove('zone-active');
+            zTop.classList.remove('zone-active'); zBottom.classList.remove('zone-active');
+        }
+
+        // --- 5. KEYBOARD CONTROLS (FITUR BARU) ---
+        window.addEventListener('keydown', (e) => {
+            // Abaikan keyboard jika sistem terkunci? (Opsional, di sini kita biarkan keyboard tetap jalan sebagai 'God Mode')
+            
+            // Cegah scroll browser saat tekan panah
+            if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(e.code) > -1) {
+                e.preventDefault();
+            }
+
+            switch(e.key) {
+                case 'ArrowLeft': // Slide Sebelumnya
+                    if (targetIndex > 0) { targetIndex--; updateLayout(); statusText.innerText = "⌨️ KEY PREV"; }
+                    break;
+                case 'ArrowRight': // Slide Selanjutnya
+                    if (targetIndex < imageMeshes.length - 1) { targetIndex++; updateLayout(); statusText.innerText = "⌨️ KEY NEXT"; }
+                    break;
+                case 'ArrowUp': // Zoom In (Sesuai Logic)
+                    targetCamZ = ZOOM_TARGET_Z;
+                    statusText.innerText = "⌨️ KEY ZOOM IN";
+                    break;
+                case 'ArrowDown': // Zoom Out (Reset)
+                    targetCamZ = INITIAL_CAM_Z;
+                    statusText.innerText = "⌨️ KEY RESET";
+                    break;
+            }
+        });
+
+        // --- MEDIA PIPE INIT ---
+        const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
+        hands.onResults(onResults);
+        const cam = new Camera(document.getElementById('cam-preview'), { onFrame: async () => { await hands.send({image: document.getElementById('cam-preview')}); }, width: 320, height: 240 });
+        cam.start();
+
+        // --- 6. ANIMASI LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+            if (cooldown > 0) cooldown--;
+            
+            // Animasi Kamera
+            camera.position.z += (targetCamZ - camera.position.z) * 0.08; 
+            
+            // Animasi Slide
+            imageMeshes.forEach(m => {
+                if(m.userData.tPos) {
+                    m.position.lerp(m.userData.tPos, 0.1);
+                    m.rotation.x+=(m.userData.tRot.x-m.rotation.x)*0.1;
+                    m.rotation.y+=(m.userData.tRot.y-m.rotation.y)*0.1;
+                    const s = m.scale.x+(m.userData.tScale-m.scale.x)*0.1; m.scale.set(s,s,1);
+                    m.material.uniforms.uBlur.value+=(m.userData.tBlur-m.material.uniforms.uBlur.value)*0.1;
+                }
+            });
+            renderer.render(scene, camera);
+        }
+        animate();
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
