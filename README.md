@@ -1,4 +1,4 @@
-# 🖐️ 3D Pro Presentation - Gesture Control
+# 🖐️ 3D Presentation - Gesture Control
 
 Sistem presentasi berbasis web yang memanfaatkan teknologi **Computer Vision** untuk kontrol navigasi nirsentuh melalui gestur tangan secara real-time.
 
@@ -20,8 +20,8 @@ Sistem presentasi berbasis web yang memanfaatkan teknologi **Computer Vision** u
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/username/3d-gesture-presentation.git
-cd 3d-gesture-presentation
+git clone https://github.com/andreiswahyudi/3D-Presentation---Gestures-Control
+cd 3D-Presentation---Gestures-Control
 
 ```
 
